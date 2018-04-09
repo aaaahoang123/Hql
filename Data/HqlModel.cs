@@ -7,26 +7,24 @@ using MySql.Data.MySqlClient;
 
 namespace Hql.Data
 {
-    public class HqlModel
+    public class HqlModel<T> where T : class, new()
     {
         private String table;
-        private Type schema;
         private PropertyInfo[] pi;
         private MySqlConnection con;
 
-        public HqlModel(string table, Type schema, MySqlConnection con)
+        public HqlModel(string table, MySqlConnection con)
         {
             this.table = table;
-            this.schema = schema;
             this.con = con;
-            this.pi = schema.GetProperties();
+            this.pi = typeof(T).GetProperties();
         }
 
-        public int InsertOne<T>(T item)
+        public int InsertOne(T item)
         {
             int af = 0;
             // if item and schema isn't the same type, return 0
-            if (schema != item.GetType())
+            if (typeof(T) != item.GetType())
             {
                 Console.WriteLine("The input item and the model isn't the same type");
                 return af;
@@ -47,12 +45,12 @@ namespace Hql.Data
         }
        
         // return 1 if success, 0 if failed
-        public int UpdateOne<T, U>(Dictionary<string, U> key, T item)
+        public int UpdateOne<U>(Dictionary<string, U> key, T item)
         {
             int af = 0;
             
             // if the item isn't the same type with schema, return 0
-            if (schema != item.GetType())
+            if (typeof(T) != item.GetType())
             {
                 Console.WriteLine("The input item and the model isn't the same type");
                 return af;
@@ -77,13 +75,13 @@ namespace Hql.Data
             return af;
         }
 
-        public List<T> Find<T>() where T : class, new()
+        public List<T> Find()
         {
-            List<T> list = Find<T, string>(null);
+            List<T> list = Find<string>(null);
             return list;
         }
 
-        public List<T> Find<T, TKey>(Dictionary<string, TKey> condition) where T : class, new()
+        public List<T> Find<TKey>(Dictionary<string, TKey> condition)
         {
             List<T> listItem = new List<T>();
             List<string> listField = new List<string>();
@@ -130,7 +128,7 @@ namespace Hql.Data
             return listItem;
         }
 
-        public int Delete<T>(Dictionary<string, T> condition)
+        public int Delete<TKey>(Dictionary<string, TKey> condition)
         {
             int af = 0;
             string deleteString = SqlStringBuilder.GetDeleteString(table, new List<string>(condition.Keys));

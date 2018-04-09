@@ -12,9 +12,9 @@ namespace Hql.Data
             _connection = new MySqlConnection(url);
         }
 
-        public static HqlModel GetModel(String table, Type schema)
+        public static HqlModel<T> GetModel<T>(String table) where T : class, new()
         {
-            return new HqlModel(table, schema, _connection);
+            return new HqlModel<T>(table, _connection);
         }
     }
 }
