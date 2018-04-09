@@ -98,7 +98,6 @@ namespace Hql.Data
                     cmd.AddValue(condition);
                 }
 
-                Console.WriteLine();
                 MySqlDataReader reader = cmd.ExecuteReader();
                 
                 T obj;
