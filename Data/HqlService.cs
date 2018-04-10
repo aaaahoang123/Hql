@@ -7,6 +7,8 @@ namespace Hql.Data
     {
         private static MySqlConnection _connection;
 
+        public static MySqlConnection Connection => _connection;
+
         public static void Connect(String url)
         {
             _connection = new MySqlConnection(url);

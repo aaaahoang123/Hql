@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 using Hql.Ultility;
@@ -9,18 +10,27 @@ namespace Hql.Data
 {
     public class HqlModel<T> where T : class, new()
     {
+        private MySqlTransaction tran;
         private String table;
         private PropertyInfo[] pi;
         private MySqlConnection con;
+        private MySqlCommand mySqlCommand;
 
         public HqlModel(string table, MySqlConnection con)
         {
             this.table = table;
             this.con = con;
+            mySqlCommand = con.CreateCommand();
             this.pi = typeof(T).GetProperties();
         }
 
+        // In default, the insert one method will close the connection
         public int InsertOne(T item)
+        {
+            return InsertOne(item, false);
+        }
+        
+        public int InsertOne(T item, bool isInTransaction)
         {
             int af = 0;
             // if item and schema isn't the same type, return 0
@@ -31,21 +41,35 @@ namespace Hql.Data
             }
 
             List<string> listField = FieldsHandle.FilterField(item);
-
-            string insertString = SqlStringBuilder.GetInsertString(table, listField);
             
-            if (OpenCon())
+            // gen the insert string
+            string insertString = SqlStringBuilder.GetInsertString(table, listField);
+
+            // check if the connection is opened
+            bool conOpened = con.State == ConnectionState.Open;
+            // if not, open it
+            if (!conOpened) conOpened = OpenCon();
+            
+            if (conOpened)
             {
-                HqlCommand cmd = new HqlCommand(new MySqlCommand(insertString, con));
+                mySqlCommand.CommandText = insertString; mySqlCommand.Parameters.Clear();
+                if (isInTransaction) mySqlCommand.Transaction = tran;
+                else mySqlCommand.Transaction = null;
+                HqlCommand cmd = new HqlCommand(mySqlCommand);
                 cmd.AddValue(listField, item);
                 af = cmd.ExecuteNonQuery();
-                CloseCon();
+                // if the param willCloseCon == true, close the connection
+                if (!isInTransaction) CloseCon();
             }
             return af;
         }
-       
-        // return 1 if success, 0 if failed
+
         public int UpdateOne<U>(Dictionary<string, U> key, T item)
+        {
+            return UpdateOne(key, item, false);
+        }
+        // return 1 if success, 0 if failed
+        public int UpdateOne<U>(Dictionary<string, U> key, T item, bool isInTransaction)
         {
             int af = 0;
             
@@ -59,9 +83,15 @@ namespace Hql.Data
             List<string> listFields = FieldsHandle.FilterField(item);
             string updateString = SqlStringBuilder.GetUpdateString(table, key, listFields);
 
-            if (OpenCon())
+            bool conOpened = con.State == ConnectionState.Open;
+            if (!conOpened) conOpened = OpenCon();
+            
+            if (conOpened)
             {
-                HqlCommand cmd = new HqlCommand(new MySqlCommand(updateString, con));
+                mySqlCommand.CommandText = updateString; mySqlCommand.Parameters.Clear();
+                if (isInTransaction) mySqlCommand.Transaction = tran;
+                else mySqlCommand.Transaction = null;
+                HqlCommand cmd = new HqlCommand(mySqlCommand);
 
                 cmd.AddValue(listFields, item);
                 string keyFields = new List<string>(key.Keys)[0];
@@ -69,7 +99,7 @@ namespace Hql.Data
                 
                 af = cmd.ExecuteNonQuery();
                 
-                CloseCon();
+                if (!isInTransaction) CloseCon();
             }
 
             return af;
@@ -77,20 +107,31 @@ namespace Hql.Data
 
         public List<T> Find()
         {
-            List<T> list = Find<string>(null);
-            return list;
+            return Find<string>(null);
         }
 
         public List<T> Find<TKey>(Dictionary<string, TKey> condition)
+        {
+            return Find<TKey>(condition, false);
+        }
+
+        public List<T> Find<TKey>(Dictionary<string, TKey> condition, bool isInTransaction)
         {
             List<T> listItem = new List<T>();
             List<string> listField = new List<string>();
             if (condition != null) listField = new List<string>(condition.Keys);
 
             string selectString = SqlStringBuilder.GetSelectString(table, listField);
-            if (OpenCon())
+            
+            bool conOpened = con.State == ConnectionState.Open;
+            if (!conOpened) conOpened = OpenCon();
+            
+            if (conOpened)
             {
-                HqlCommand cmd = new HqlCommand(new MySqlCommand(selectString, con));
+                mySqlCommand.CommandText = selectString; mySqlCommand.Parameters.Clear();
+                if (isInTransaction) mySqlCommand.Transaction = tran;
+                else mySqlCommand.Transaction = null;
+                HqlCommand cmd = new HqlCommand(mySqlCommand);
                 if (condition != null)
                 {
                     cmd.AddValue(condition);
@@ -121,7 +162,8 @@ namespace Hql.Data
                     listItem.Add(obj);
                 }
 
-                CloseCon();
+                reader.Close();
+                if (!isInTransaction) CloseCon();
             }
 
             return listItem;
@@ -133,7 +175,8 @@ namespace Hql.Data
             string deleteString = SqlStringBuilder.GetDeleteString(table, new List<string>(condition.Keys));
             if (OpenCon())
             {
-                HqlCommand cmd = new HqlCommand(new MySqlCommand(deleteString));
+                mySqlCommand.CommandText = deleteString; mySqlCommand.Parameters.Clear();
+                HqlCommand cmd = new HqlCommand(mySqlCommand);
                 cmd.AddValue(condition);
                 af = cmd.ExecuteNonQuery();
                 CloseCon();
@@ -141,6 +184,17 @@ namespace Hql.Data
             
             return af; 
         }
+
+        public void HqlTransaction(Action<MySqlTransaction> action)
+        {
+            OpenCon();
+            tran = con.BeginTransaction();
+            action(tran);
+            
+            CloseCon();
+        }
+
+       
 
         private bool OpenCon()
         {
@@ -155,7 +209,6 @@ namespace Hql.Data
                 return false;
             }
         }
-        
 
         private bool CloseCon()
         {
