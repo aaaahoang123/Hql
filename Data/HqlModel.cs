@@ -184,6 +184,66 @@ namespace Hql.Data
             
             return af; 
         }
+        
+        /// <Note>
+        /// ExecuteNonQuery with another command string, that can work with another table, that difference from this.table
+        /// This method help the user work with multi table when open a transaction
+        /// </Note>
+        public int ExecuteNonQuery<TKey>(string scmd)
+        {
+            return ExecuteNonQuery<TKey>(scmd, null);
+        }
+
+        public int ExecuteNonQuery<TKey>(string scmd, Dictionary<string, TKey> value)
+        {
+            return ExecuteNonQuery<TKey>(scmd, value, false);
+        }
+        
+        public int ExecuteNonQuery<TKey>(string scmd, Dictionary<string, TKey> value, bool isInTransaction)
+        {
+            int af = 0;
+            bool conOpened = con.State == ConnectionState.Open;
+            if (!conOpened) conOpened = OpenCon();
+
+            if (conOpened)
+            {
+                mySqlCommand.CommandText = scmd; mySqlCommand.Parameters.Clear();
+                HqlCommand cmd = new HqlCommand(mySqlCommand);
+                if (value != null) cmd.AddValue(value);
+                af = cmd.ExecuteNonQuery();
+                if (!isInTransaction) CloseCon();
+            }
+
+            return af;
+        }
+
+        public MySqlDataReader ExecuteReader<TKey>(string scmd)
+        {
+            return ExecuteReader<TKey>(scmd, null);
+        }
+        
+        public MySqlDataReader ExecuteReader<TKey>(string scmd, Dictionary<string, TKey> value)
+        {
+            return ExecuteReader<TKey>(scmd, value, false);
+        }
+
+        public MySqlDataReader ExecuteReader<TKey>(string scmd, Dictionary<string, TKey> value, bool isInTransaction)
+        {
+            MySqlDataReader reader = null;
+            bool conOpened = con.State == ConnectionState.Open;
+            if (!conOpened) conOpened = OpenCon();
+
+            if (conOpened)
+            {
+                mySqlCommand.CommandText = scmd; mySqlCommand.Parameters.Clear();
+                HqlCommand cmd = new HqlCommand(mySqlCommand);
+                if (value != null) cmd.AddValue(value);
+                reader = cmd.ExecuteReader();
+                if (!isInTransaction) CloseCon();
+            }
+
+            return reader;
+        }
 
         public void HqlTransaction(Action<MySqlTransaction> action)
         {
@@ -193,8 +253,6 @@ namespace Hql.Data
             
             CloseCon();
         }
-
-       
 
         private bool OpenCon()
         {

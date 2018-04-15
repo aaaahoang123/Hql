@@ -61,7 +61,7 @@ namespace Hql.Ultility
             usb.Append(" WHERE ")
                 .Append(keyField)
                 .Append("=@")
-                .Append(key[keyField]);
+                .Append(keyField);
             
             return usb.ToString();
         }
