@@ -36,7 +36,7 @@ namespace Hql.Ultility
             return isb.ToString();
         }
 
-        public static string GetUpdateString<T>(string table, Dictionary<string, T> key, List<string> fields)
+        public static string GetUpdateString<T>(string table, Dictionary<string, T> key, List<string> fields, string raiseOrDecrease)
         {
             StringBuilder usb = new StringBuilder();
 
@@ -48,8 +48,21 @@ namespace Hql.Ultility
             {
                 usb.Append(Char.ToLowerInvariant(f[0]))
                     .Append(f.Substring(1))
-                    .Append("=@")
-                    .Append(f);
+                    .Append("=");
+                switch (raiseOrDecrease)
+                {
+                     case "raise": 
+                         usb.Append(f).Append("+@");
+                         break;
+                     case "decrease":
+                         usb.Append(f).Append("-@");
+                         break;
+                     default:
+                         usb.Append("@");
+                         break;
+                } 
+
+                usb.Append(f);
                 if (!fields.Last().Equals(f))
                 {
                     usb.Append(",");
@@ -62,11 +75,10 @@ namespace Hql.Ultility
                 .Append(keyField)
                 .Append("=@")
                 .Append(keyField);
-            
             return usb.ToString();
         }
 
-        public static string GetSelectString(string table, List<string> listKeys)
+        public static string GetSelectString(string table, List<string> listKeys, bool andOr)
         {
             StringBuilder ssb = new StringBuilder();
             ssb.Append("SELECT * FROM ")
@@ -81,7 +93,7 @@ namespace Hql.Ultility
                         .Append(k);
                     if (!listKeys.Last().Equals(k))
                     {
-                        ssb.Append(" AND ");
+                        ssb.Append(andOr ? " AND " : " OR ");
                     }
                 }
             }

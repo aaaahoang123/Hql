@@ -29,12 +29,17 @@ namespace Hql.Data
         {
             return InsertOne(item, false);
         }
-        
+
         public int InsertOne(T item, bool isInTransaction)
+        {
+            return InsertOne<T>(item, isInTransaction, table);
+        }
+        
+        public int InsertOne<TU>(TU item, bool isInTransaction, string table) where TU : class, new()
         {
             int af = 0;
             // if item and schema isn't the same type, return 0
-            if (typeof(T) != item.GetType())
+            if (typeof(TU) != item.GetType())
             {
                 Console.WriteLine("The input item and the model isn't the same type");
                 return af;
@@ -66,22 +71,32 @@ namespace Hql.Data
 
         public int UpdateOne<U>(Dictionary<string, U> key, T item)
         {
-            return UpdateOne(key, item, false);
+            return UpdateOne<U>(key, item, false);
+        }
+
+        public int UpdateOne<U>(Dictionary<string, U> key, T item, bool isInTransaction)
+        {
+            return UpdateOne<U, T>(key, item, isInTransaction, null, table);
+        }
+
+        public int UpdateOneChange<U, TU>(Dictionary<string, U> key, TU item, bool isInTransaction, string raiOrDecrease)
+        {
+            return UpdateOne<U, TU>(key, item, isInTransaction, raiOrDecrease, table);
         }
         // return 1 if success, 0 if failed
-        public int UpdateOne<U>(Dictionary<string, U> key, T item, bool isInTransaction)
+        public int UpdateOne<U, TU>(Dictionary<string, U> key, TU item, bool isInTransaction, string raiseOrDecrease, string table)
         {
             int af = 0;
             
             // if the item isn't the same type with schema, return 0
-            if (typeof(T) != item.GetType())
+            if (typeof(TU) != item.GetType())
             {
                 Console.WriteLine("The input item and the model isn't the same type");
                 return af;
             }
 
             List<string> listFields = FieldsHandle.FilterField(item);
-            string updateString = SqlStringBuilder.GetUpdateString(table, key, listFields);
+            string updateString = SqlStringBuilder.GetUpdateString(table, key, listFields, raiseOrDecrease);
 
             bool conOpened = con.State == ConnectionState.Open;
             if (!conOpened) conOpened = OpenCon();
@@ -112,16 +127,21 @@ namespace Hql.Data
 
         public List<T> Find<TKey>(Dictionary<string, TKey> condition)
         {
-            return Find<TKey>(condition, false);
+            return Find<TKey>(condition, true);
         }
 
-        public List<T> Find<TKey>(Dictionary<string, TKey> condition, bool isInTransaction)
+        public List<T> Find<TKey>(Dictionary<string, TKey> condition, bool andOr)
         {
-            List<T> listItem = new List<T>();
+            return Find<T, TKey>(condition, andOr, false, table);
+        }
+
+        public List<TU> Find<TU, TKey>(Dictionary<string, TKey> condition, bool andOrCondition, bool isInTransaction, string table) where TU: class, new() // true: and condition, false: or condition
+        {
+            List<TU> listItem = new List<TU>();
             List<string> listField = new List<string>();
             if (condition != null) listField = new List<string>(condition.Keys);
 
-            string selectString = SqlStringBuilder.GetSelectString(table, listField);
+            string selectString = SqlStringBuilder.GetSelectString(table, listField, andOrCondition);
             
             bool conOpened = con.State == ConnectionState.Open;
             if (!conOpened) conOpened = OpenCon();
@@ -139,12 +159,12 @@ namespace Hql.Data
 
                 MySqlDataReader reader = cmd.ExecuteReader();
                 
-                T obj;
+                TU obj;
 
                 object[] param;
                 while (reader.Read())
                 {
-                    obj = new T();
+                    obj = new TU();
 
                     for (int i = 0; i < pi.Length; i++)
                     {

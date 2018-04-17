@@ -34,7 +34,14 @@ namespace Hql.Ultility
             }
             catch (Exception e)
             {
-                return true;
+                try
+                {
+                    return (long) item.GetType().GetMethod("get_" + p.Name)?.Invoke(item, null) != 0;
+                }
+                catch (Exception exception)
+                {
+                    return true;
+                }
             }
         }
     }
