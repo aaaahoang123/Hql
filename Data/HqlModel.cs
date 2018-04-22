@@ -168,10 +168,10 @@ namespace Hql.Data
 
                     for (int i = 0; i < pi.Length; i++)
                     {
-                        param = new[] {reader[i]};
                         try
                         {
-                            obj.GetType().GetMethod("set_" + pi[i].Name)?.Invoke(obj, param.Length == 0 ? null : param);
+                            pi[i].SetValue(obj, reader[i]);
+                            //obj.GetType().GetMethod("set_" + pi[i].Name)?.Invoke(obj, param.Length == 0 ? null : param);
                         }
                         catch (Exception e)
                         {

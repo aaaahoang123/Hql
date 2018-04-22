@@ -17,8 +17,9 @@ namespace Hql.Ultility
         {
             for (int i = 0; i < fields.Count; i++)
             {
+                
                 cmd.Parameters.AddWithValue("@" + fields[i],
-                    item.GetType().GetMethod("get_" + fields[i])?.Invoke(item, null));
+                    item.GetType().GetProperty(fields[i])?.GetValue(item));
             }
 
             return true;

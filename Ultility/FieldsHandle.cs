@@ -23,20 +23,20 @@ namespace Hql.Ultility
 
         private static bool NotNullStringProperty<T>(PropertyInfo p, T item)
         {
-            return item.GetType().GetMethod("get_" + p.Name)?.Invoke(item, null) != null;
+            return p.GetValue(item) != null;
         }
 
         private static bool NotZeroIntProperty<T>(PropertyInfo p, T item)
         {
             try
             {
-                return (int) item.GetType().GetMethod("get_" + p.Name)?.Invoke(item, null) != 0;
+                return (int) p.GetValue(item) != 0;
             }
             catch (Exception e)
             {
                 try
                 {
-                    return (long) item.GetType().GetMethod("get_" + p.Name)?.Invoke(item, null) != 0;
+                    return (long) p.GetValue(item) != 0;
                 }
                 catch (Exception exception)
                 {
